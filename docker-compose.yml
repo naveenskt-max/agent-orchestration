@@ -28,7 +28,11 @@ services:
       registry:
         condition: service_healthy
     environment:
-      - REGISTRY_URL=http://registry:8000
+      - REGISTRY_URL=${REGISTRY_URL:-http://registry:8000}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GOOGLE_MODEL=${GOOGLE_MODEL:-gemini-2.0-flash-exp}
+    env_file:
+      - .env
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
       interval: 30s

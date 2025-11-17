@@ -178,6 +178,12 @@ docs/
 .env.production
 config.local.py
 
+# API keys and secrets (never commit)
+*.key
+*.pem
+secrets/
+credentials/
+
 # Database
 *.db
 *.sqlite

@@ -3,22 +3,32 @@ Planner Agent - Uses Google ADK to intelligently decompose goals into agent work
 """
 import httpx
 import json
-from typing import List, Dict, Any
+import os
+from typing import List, Dict, Any, Optional
 from google import genai
 from google.genai.types import Tool, FunctionDeclaration, GenerateContentConfig
 
 class PlannerAgent:
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: Optional[str] = None):
         """Initialize the Planner Agent with Google ADK"""
-        # Initialize Gemini client
-        if api_key:
-            self.client = genai.Client(api_key=api_key)
-        else:
-            # Will use GOOGLE_API_KEY env variable
-            self.client = genai.Client()
+        # Priority 1: Environment variable (production)
+        api_key = os.getenv('GOOGLE_API_KEY')
         
-        self.model_name = "gemini-2.0-flash-exp"
-        self.registry_url = "http://registry:8000"  # Use Docker service name
+        # Priority 2: Provided parameter (for testing)
+        if not api_key and api_key is not None:
+            api_key = api_key
+        
+        # Priority 3: Error if no key found
+        if not api_key:
+            raise ValueError(
+                "GOOGLE_API_KEY environment variable not set. "
+                "Please set it in your environment or .env file. "
+                "Get your key from: https://makersuite.google.com/app/apikey"
+            )
+        
+        self.client = genai.Client(api_key=api_key)
+        self.model_name = os.getenv('GOOGLE_MODEL', 'gemini-2.0-flash-exp')
+        self.registry_url = os.getenv('REGISTRY_URL', 'http://registry:8000')  # Use Docker service name
     
     async def get_available_agents(self) -> List[Dict[str, Any]]:
         """Fetch available agents from registry"""
@@ -187,19 +197,23 @@ Generate a workflow plan following the system instructions."""
                 )
                 
                 # Parse response
-                plan_json = json.loads(response.text)
+                if response.text:
+                    try:
+                        plan_json = json.loads(response.text)
+                    except json.JSONDecodeError:
+                        continue
                 
-                # Validate and score
-                validated_plan = self._validate_plan(plan_json, agents)
-                if validated_plan:
-                    decompositions.append({
-                        'attempt': i,
-                        'approach': approach,
-                        'steps': validated_plan['steps'],
-                        'coverage': validated_plan['estimated_coverage'],
-                        'reasoning': validated_plan.get('reasoning', ''),
-                        'missing': validated_plan.get('missing_capabilities', [])
-                    })
+        # Validate and score
+        validated_plan = self._validate_plan(plan_json, agents)
+        if validated_plan:
+            decompositions.append({
+                'attempt': i,
+                'approach': approach,
+                'steps': validated_plan.get('steps', []),
+                'coverage': validated_plan.get('estimated_coverage', 0.0),
+                'reasoning': validated_plan.get('reasoning', ''),
+                'missing': validated_plan.get('missing_capabilities', [])
+            })
                 
             except Exception as e:
                 print(f"Decomposition attempt {i} failed: {e}")
@@ -211,7 +225,7 @@ Generate a workflow plan following the system instructions."""
         
         return decompositions
     
-    def _validate_plan(self, plan: Dict[str, Any], agents: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _validate_plan(self, plan: Dict[str, Any], agents: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         """Validate that plan uses only available agents"""
         available_agent_names = {a['name'] for a in agents}
         
