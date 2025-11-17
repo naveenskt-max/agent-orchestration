@@ -1,0 +1,5 @@
+fastapi
+google-adk
+httpx
+pydantic
+uvicorn

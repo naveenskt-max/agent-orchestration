@@ -1,0 +1,172 @@
+
+
+networks:
+  agent-network:
+    driver: bridge
+
+services:
+  registry:
+    build: ./registry
+    ports:
+      - "8000:8000"
+    networks:
+      - agent-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+  
+  planner:
+    build: ./planner
+    ports:
+      - "8100:8100"
+    networks:
+      - agent-network
+    depends_on:
+      registry:
+        condition: service_healthy
+    environment:
+      - REGISTRY_URL=http://registry:8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  executor:
+    build: ./executor
+    ports:
+      - "8200:8200"
+    networks:
+      - agent-network
+    depends_on:
+      registry:
+        condition: service_healthy
+    environment:
+      - REGISTRY_URL=http://registry:8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8200/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  observability:
+    build: ./observability
+    ports:
+      - "8300:8300"
+    networks:
+      - agent-network
+    depends_on:
+      registry:
+        condition: service_healthy
+      planner:
+        condition: service_healthy
+      executor:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8300/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  sales_data_agent:
+    build: ./agents/sales_data_agent
+    ports:
+      - "8001:8001"
+    networks:
+      - agent-network
+    depends_on:
+      registry:
+        condition: service_healthy
+    environment:
+      - REGISTRY_URL=http://registry:8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  news_search_agent:
+    build: ./agents/news_search_agent
+    ports:
+      - "8002:8002"
+    networks:
+      - agent-network
+    depends_on:
+      registry:
+        condition: service_healthy
+    environment:
+      - REGISTRY_URL=http://registry:8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  text_analysis_agent:
+    build: ./agents/text_analysis_agent
+    ports:
+      - "8003:8003"
+    networks:
+      - agent-network
+    depends_on:
+      registry:
+        condition: service_healthy
+    environment:
+      - REGISTRY_URL=http://registry:8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  data_visualization_agent:
+    build: ./agents/data_visualization_agent
+    ports:
+      - "8004:8004"
+    networks:
+      - agent-network
+    depends_on:
+      registry:
+        condition: service_healthy
+    environment:
+      - REGISTRY_URL=http://registry:8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+  
+  ui:
+    build: ./ui
+    ports:
+      - "8501:8501"
+    networks:
+      - agent-network
+    depends_on:
+      planner:
+        condition: service_healthy
+      executor:
+        condition: service_healthy
+      observability:
+        condition: service_healthy
+    environment:
+      - REGISTRY_URL=http://registry:8000
+      - PLANNER_URL=http://planner:8100
+      - EXECUTOR_URL=http://executor:8200
+      - OBSERVABILITY_URL=http://observability:8300
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
