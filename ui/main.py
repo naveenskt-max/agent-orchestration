@@ -6,6 +6,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import os
 
 # Configure page
 st.set_page_config(
@@ -28,13 +29,19 @@ if "current_tab" not in st.session_state:
 st.title("🤖 AI Agent Orchestration Platform")
 st.markdown("Intelligent workflow planning with gap analysis and guided agent development")
 
+# Service URLs from environment variables
+REGISTRY_URL = os.getenv("REGISTRY_URL", "http://localhost:8000")
+PLANNER_URL = os.getenv("PLANNER_URL", "http://localhost:8100")
+EXECUTOR_URL = os.getenv("EXECUTOR_URL", "http://localhost:8200")
+OBSERVABILITY_URL = os.getenv("OBSERVABILITY_URL", "http://localhost:8300")
+
 # Service Health Check
 def check_service_health():
     services = {
-        "Registry": "http://localhost:8000",
-        "Planner": "http://localhost:8100", 
-        "Executor": "http://localhost:8200",
-        "Observability": "http://localhost:8300"
+        "Registry": REGISTRY_URL,
+        "Planner": PLANNER_URL,
+        "Executor": EXECUTOR_URL,
+        "Observability": OBSERVABILITY_URL
     }
     
     status = {}
@@ -50,7 +57,7 @@ def check_service_health():
 # Load agents from registry
 def load_agents():
     try:
-        response = httpx.get("http://localhost:8000/list_agents", timeout=5.0)
+        response = httpx.get(f"{REGISTRY_URL}/list_agents", timeout=5.0)
         if response.status_code == 200:
             return response.json()
     except:
@@ -60,7 +67,7 @@ def load_agents():
 # Load observability metrics
 def load_observability_metrics():
     try:
-        response = httpx.get("http://localhost:8300/metrics", timeout=5.0)
+        response = httpx.get(f"{OBSERVABILITY_URL}/metrics", timeout=5.0)
         if response.status_code == 200:
             return response.json()
     except:
@@ -70,7 +77,7 @@ def load_observability_metrics():
 # Load traces
 def load_traces(limit=50):
     try:
-        response = httpx.get(f"http://localhost:8300/traces?limit={limit}", timeout=5.0)
+        response = httpx.get(f"{OBSERVABILITY_URL}/traces?limit={limit}", timeout=5.0)
         if response.status_code == 200:
             return response.json()["traces"]
     except:
@@ -80,7 +87,7 @@ def load_traces(limit=50):
 # Load events
 def load_events(limit=100):
     try:
-        response = httpx.get(f"http://localhost:8300/events?limit={limit}", timeout=5.0)
+        response = httpx.get(f"{OBSERVABILITY_URL}/events?limit={limit}", timeout=5.0)
         if response.status_code == 200:
             return response.json()["events"]
     except:
@@ -147,7 +154,7 @@ with tab1:
             with st.spinner("🤔 Analyzing goal and generating strategies..."):
                 try:
                     start_time = time.time()
-                    response = httpx.post("http://localhost:8100/plan", json={"goal": goal}, timeout=30.0)
+                    response = httpx.post(f"{PLANNER_URL}/plan", json={"goal": goal}, timeout=30.0)
                     response.raise_for_status()
                     st.session_state.plan = response.json()
                     st.session_state.execution_result = None
@@ -279,7 +286,7 @@ with tab1:
                     try:
                         start_time = time.time()
                         response = httpx.post(
-                            "http://localhost:8200/execute_workflow", 
+                            f"{EXECUTOR_URL}/execute_workflow",
                             json={"plan": plan_to_execute},
                             timeout=60.0
                         )
@@ -306,7 +313,7 @@ with tab1:
                 with st.spinner(f"🔄 Executing with up to {max_retries} retries..."):
                     try:
                         response = httpx.post(
-                            "http://localhost:8200/execute_workflow",
+                            f"{EXECUTOR_URL}/execute_workflow",
                             json={"plan": plan_to_execute, "max_retries": max_retries},
                             timeout=120.0
                         )

@@ -35,9 +35,15 @@ async def execute(request: NewsSearchAgentInput):
     
     return NewsSearchAgentOutput(articles=articles)
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "agent": "news_search_agent"}
+
 @app.on_event("startup")
 async def register_agent():
-    registry_url = "http://localhost:8000/register"
+    import os
+    registry_host = os.getenv("REGISTRY_URL", "http://localhost:8000")
+    registry_url = f"{registry_host}/register"
     agent_card = {
         "name": "news_search_agent",
         "description": "Searches web for recent news articles using keywords and date ranges. Returns structured article data including titles, URLs, and snippets.",
@@ -78,7 +84,7 @@ async def register_agent():
                 }
             }
         },
-        "endpoint": "http://localhost:8002/execute"
+        "endpoint": "http://news_search_agent:8002/execute"
     }
     
     try:

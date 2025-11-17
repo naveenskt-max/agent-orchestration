@@ -68,9 +68,15 @@ async def execute(request: SalesDataAgentInput):
 
     return SalesDataAgentOutput(records=records, total_sales=round(total_sales, 2), period=period_str)
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "agent": "sales_data_agent"}
+
 @app.on_event("startup")
 async def register_agent():
-    registry_url = "http://localhost:8000/register" # Assuming registry runs on 8000
+    import os
+    registry_host = os.getenv("REGISTRY_URL", "http://localhost:8000")
+    registry_url = f"{registry_host}/register"
     agent_card = {
         "name": "sales_data_agent",
         "description": "Fetches sales records from database for specified time periods with filtering capabilities. Supports time-based queries and custom filtering.",
@@ -118,7 +124,7 @@ async def register_agent():
                 }
             }
         },
-        "endpoint": "http://localhost:8001/execute" # Assuming this agent runs on 8001
+        "endpoint": "http://sales_data_agent:8001/execute"
     }
     
     try:

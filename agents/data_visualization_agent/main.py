@@ -22,9 +22,15 @@ async def execute(request: DataVisualizationAgentInput):
     chart_url = f"http://mockcharts.com/chart/{random.randint(1000,9999)}.png"
     return DataVisualizationAgentOutput(chart_url=chart_url, chart_type=request.chart_type)
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "agent": "data_visualization_agent"}
+
 @app.on_event("startup")
 async def register_agent():
-    registry_url = "http://localhost:8000/register"
+    import os
+    registry_host = os.getenv("REGISTRY_URL", "http://localhost:8000")
+    registry_url = f"{registry_host}/register"
     agent_card = {
         "name": "data_visualization_agent",
         "description": "Creates charts and graphs from structured data. Supports multiple chart types including line, bar, and pie charts with customizable titles.",
@@ -32,8 +38,8 @@ async def register_agent():
             "type": "object",
             "properties": {
                 "data": {
-                    "type": ["object", "array"],
-                    "description": "Data to visualize (array or object with numeric values)"
+                    "type": "object",
+                    "description": "Data to visualize (object or array with numeric values)"
                 },
                 "chart_type": {
                     "type": "string",
@@ -60,7 +66,7 @@ async def register_agent():
                 }
             }
         },
-        "endpoint": "http://localhost:8004/execute"
+        "endpoint": "http://data_visualization_agent:8004/execute"
     }
     
     try:

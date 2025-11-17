@@ -4,10 +4,43 @@ from planner_agent import planner_agent
 import sys
 import os
 import time
+import uuid
+from datetime import datetime
 
-# Add observability to path
-sys.path.append('/app/observability')
-from manager import observability
+# Simple observability implementation
+class SimpleObservability:
+    """Simple observability for planner service"""
+
+    def __init__(self):
+        self.traces = []
+
+    def start_trace(self, service: str, operation: str, **kwargs):
+        trace_id = str(uuid.uuid4())
+        trace = {
+            "trace_id": trace_id,
+            "service": service,
+            "operation": operation,
+            "start_time": datetime.now(),
+            "metadata": kwargs
+        }
+        self.traces.append(trace)
+        return trace_id
+
+    def end_trace(self, trace_id: str, status: str, **kwargs):
+        for trace in self.traces:
+            if trace["trace_id"] == trace_id:
+                trace["end_time"] = datetime.now()
+                trace["status"] = status
+                trace["metadata"].update(kwargs)
+                break
+
+    def log_plan_generation(self, **kwargs):
+        pass  # No-op for now
+
+    def log_gap_detection(self, **kwargs):
+        pass  # No-op for now
+
+observability = SimpleObservability()
 
 app = FastAPI()
 

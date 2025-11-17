@@ -11,23 +11,25 @@ from google.genai.types import Tool, FunctionDeclaration, GenerateContentConfig
 class PlannerAgent:
     def __init__(self, api_key: Optional[str] = None):
         """Initialize the Planner Agent with Google ADK"""
-        # Priority 1: Environment variable (production)
-        api_key = os.getenv('GOOGLE_API_KEY')
         
-        # Priority 2: Provided parameter (for testing)
-        if not api_key and api_key is not None:
-            api_key = api_key
+        # 1. Check environment variable
+        key = os.getenv('GOOGLE_API_KEY')
         
-        # Priority 3: Error if no key found
-        if not api_key:
+        # 2. If not in env, check provided parameter
+        if not key:
+            key = api_key
+        
+        # 3. If still no key, raise error
+        if not key:
             raise ValueError(
-                "GOOGLE_API_KEY environment variable not set. "
-                "Please set it in your environment or .env file. "
+                "No API key found. "
+                "Set GOOGLE_API_KEY environment variable or pass it as a parameter."
                 "Get your key from: https://makersuite.google.com/app/apikey"
             )
         
-        self.client = genai.Client(api_key=api_key)
-        self.model_name = os.getenv('GOOGLE_MODEL', 'gemini-2.0-flash-exp')
+        # Use the one, validated key
+        self.client = genai.Client(api_key=key)
+        self.model_name = os.getenv('GOOGLE_MODEL', 'gemini-2.5-flash')
         self.registry_url = os.getenv('REGISTRY_URL', 'http://registry:8000')  # Use Docker service name
     
     async def get_available_agents(self) -> List[Dict[str, Any]]:
@@ -202,19 +204,19 @@ Generate a workflow plan following the system instructions."""
                         plan_json = json.loads(response.text)
                     except json.JSONDecodeError:
                         continue
-                
-        # Validate and score
-        validated_plan = self._validate_plan(plan_json, agents)
-        if validated_plan:
-            decompositions.append({
-                'attempt': i,
-                'approach': approach,
-                'steps': validated_plan.get('steps', []),
-                'coverage': validated_plan.get('estimated_coverage', 0.0),
-                'reasoning': validated_plan.get('reasoning', ''),
-                'missing': validated_plan.get('missing_capabilities', [])
-            })
-                
+
+                    # Validate and score
+                    validated_plan = self._validate_plan(plan_json, agents)
+                    if validated_plan:
+                        decompositions.append({
+                            'attempt': i,
+                            'approach': approach,
+                            'steps': validated_plan.get('steps', []),
+                            'coverage': validated_plan.get('estimated_coverage', 0.0),
+                            'reasoning': validated_plan.get('reasoning', ''),
+                            'missing': validated_plan.get('missing_capabilities', [])
+                        })
+
             except Exception as e:
                 print(f"Decomposition attempt {i} failed: {e}")
                 continue
@@ -383,12 +385,10 @@ Output ONLY valid JSON in this format:
         }
 
 
-# Singleton instance
-planner_agent = None
-
-def get_planner_agent(api_key: str = None) -> PlannerAgent:
-    """Get or create the planner agent instance"""
-    global planner_agent
-    if planner_agent is None:
-        planner_agent = PlannerAgent(api_key=api_key)
-    return planner_agent
+# Initialize the planner agent instance
+try:
+    planner_agent = PlannerAgent()
+except Exception as e:
+    print(f"Warning: Failed to initialize planner agent: {e}")
+    print("Make sure GOOGLE_API_KEY is set in environment")
+    planner_agent = None

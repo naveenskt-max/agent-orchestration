@@ -31,9 +31,15 @@ async def execute(request: TextAnalysisAgentInput):
     
     return TextAnalysisAgentOutput(insights=insights, sentiment_score=sentiment_score, themes=themes)
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "agent": "text_analysis_agent"}
+
 @app.on_event("startup")
 async def register_agent():
-    registry_url = "http://localhost:8000/register"
+    import os
+    registry_host = os.getenv("REGISTRY_URL", "http://localhost:8000")
+    registry_url = f"{registry_host}/register"
     agent_card = {
         "name": "text_analysis_agent",
         "description": "Analyzes text content to extract themes, sentiment, and key insights using NLP. Supports multiple analysis types including theme extraction, sentiment analysis, and summarization.",
@@ -72,7 +78,7 @@ async def register_agent():
                 }
             }
         },
-        "endpoint": "http://localhost:8003/execute"
+        "endpoint": "http://text_analysis_agent:8003/execute"
     }
     
     try:
