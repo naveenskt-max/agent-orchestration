@@ -154,7 +154,7 @@ with tab1:
             with st.spinner("🤔 Analyzing goal and generating strategies..."):
                 try:
                     start_time = time.time()
-                    response = httpx.post(f"{PLANNER_URL}/plan", json={"goal": goal}, timeout=30.0)
+                    response = httpx.post(f"{PLANNER_URL}/plan", json={"goal": goal}, timeout=120.0)
                     response.raise_for_status()
                     st.session_state.plan = response.json()
                     st.session_state.execution_result = None
